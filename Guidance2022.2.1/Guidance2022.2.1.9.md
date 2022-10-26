@@ -36,7 +36,7 @@ For Blazor
 ```json
 
       {
-        "nativeAppDisplayName": "Solution9 Blazor Blazor Client",
+        "nativeAppDisplayName": "Solution9 Blazor UI_Application_Name Client",
         "redirectUri": "https://localhost:7247/",
         "identifier": "e8dcb2ae-6d77-4c62-96cf-c8b9715a1d97",
         "settings": "OAuth2.Settings"
@@ -49,10 +49,10 @@ And now we have
 ```json
 
       {
-        "nativeAppDisplayName": "Solution9 Blazor Blazor Client",
+        "nativeAppDisplayName": "Solution9 Blazor UI_Application_Name Client",
         "redirectUri": "https://localhost:7247/",
         "identifier": "e8dcb2ae-6d77-4c62-96cf-c8b9715a1d97",
-        ==> "settings": "OAuth2.Blazor.Settings" <==
+        ==> "settings": "Blazor.OAuth2.UI_Application_Name.Settings" <==
       }
 
 ```
@@ -71,7 +71,7 @@ namespace Elia.Solution9.Blazor.Infrastructure;
 [Export("OAuth2", typeof(IKeyValueSettings)), Shared]
 public class TokenSettings : KeyValueSettings
 {
-    public TokenSettings(IConfiguration configuration) : base("OAuth2.Blazor.Settings", configuration)
+    public TokenSettings(IConfiguration configuration) : base("Blazor.OAuth2.UI_Application_Name.Settings", configuration)
     {
 
     }
@@ -97,10 +97,10 @@ and now,
 ```json
 
       {
-        "nativeAppDisplayName": "Wpf Wpf Client",
+        "nativeAppDisplayName": "Wpf UI_Application_Name Client",
         "redirectUri": "http://localhost",
         "identifier": "6157fdbc-a6a2-4f40-aa44-25481a5f05cb",
-        ==> "settings": "WPF.Wpf.Settings" <==
+        ==> "settings": "WPF.OAuth2.UI_Application_Name.Settings" <==
       }
 
 ```
@@ -119,7 +119,7 @@ namespace Elia.Solution9.Wpf.Infrastructure;
 [Export("OAuth2", typeof(IKeyValueSettings)), Shared]
 public class TokenSettings : KeyValueSettings
 {
-    public TokenSettings(IConfiguration configuration) : base("OAuth2.Wpf.Settings", configuration)
+    public TokenSettings(IConfiguration configuration) : base("WPF.OAuth2.UI_Application_Name.Settings", configuration)
     {
 
     }

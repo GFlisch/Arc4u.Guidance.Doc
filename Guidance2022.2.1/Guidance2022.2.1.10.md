@@ -34,7 +34,8 @@ appsettings.Localhost.json to appsettings.Development.json
 
 Change the ASPNETCORE_ENVIRONMENT to Development in launchSettings.json
 
-'''json
+```json
+
 {
   "$schema": "http://json.schemastore.org/launchsettings.json",
   "profiles": {
@@ -50,6 +51,7 @@ Change the ASPNETCORE_ENVIRONMENT to Development in launchSettings.json
     }
   }
 }
-'''
+
+```
 
 

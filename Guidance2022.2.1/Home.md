@@ -7,3 +7,4 @@ This will need a license to run => You can request information by e-mailing to [
 ## Release notes
 
 - [Guidance 2022.2.1.9](Guidance2022.2.1.9.md).
+- [Guidance 2022.2.1.10](Guidance2022.2.1.10.md).

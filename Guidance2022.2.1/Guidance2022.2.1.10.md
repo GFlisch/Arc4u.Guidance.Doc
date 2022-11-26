@@ -9,7 +9,8 @@
   - Yarp and micro-services
   - Blazor => todo.
 - Remove Server info in header.
-- Fix Blazor Program.cs issue => MSAL config.
+- 204 No Content for GetById.
+
 
 ## Guidance startup message.
 
@@ -125,11 +126,25 @@ By design the scripts generated are not allowed and a sha256 hash is generated. 
 
 ### NSwag issue.
 
-This is fine but the current Swagger generator used by the Guidance, NSwag generates an html page containing an inline script which is containing the list of services. As this is adapted each time a new service is created we have no possibility to fix this definitively.<br>
+This is fine but the current Swagger generator used by the Guidance, NSwag generates an html page containing an inline script which is containing the list of services. As this is adapted each time a new service is created, a new hash is computed we have no possibility to fix this definitively.<br>
+We have to compute and update the list of authorized hash.
 
 Use of Report in Development...
 
+The code inside the class SecurityHeaderCSPExtension check if we are in the Development environment and activate the report only mode. This will show in the console of the browser the content that will be block and propose the hash to add.
 
+When you deploy the services in the environment the browser will refuse some content if you haven't define the hash correctly.
+
+It is then your responsibility to check regularly this aspect.
+
+```csharp
+
+        if (hostEnvironment.IsDevelopment())
+            policies.AddContentSecurityPolicyReportOnly(cspBuilder); // to report on the browser console.
+        else
+            policies.AddContentSecurityPolicy(cspBuilder);
+
+```
 
 
 ## Remove Server info in header.
@@ -149,3 +164,45 @@ This is why in the startup the following code has been added.
 
 ```
 
+## 204 No Content for GetById.
+
+The current implementation of the GetById with MongoDB and EfCore has been changed to allow the return of a null value.
+Before an exception was thrown and now a 204 NoContent is returned.
+
+The attribute for Swagger has been adapted.
+
+The controller code has been changed:
+
+```csharp
+
+	[ServiceAspect(Access.AccessApplication)]
+	[ProducesResponseType(StatusCodes.Status204NoContent)]
+	[ProducesResponseType(typeof(TotoDto), StatusCodes.Status200OK)]
+	[HttpGet("id/{id:Guid}")]
+	public async Task<IActionResult> GetByIdAsync([FromServices] IMapper mapper, Guid id, CancellationToken cancellation)
+	{
+		var result = mapper.Map<TotoDto>(await _totoBL.GetByIdAsync(id, new Graph<Domain.Toto>(), cancellation).ConfigureAwait(true));
+
+		if (null == result)
+			return NoContent();
+
+		return Ok();
+	}
+
+```
+
+And the Business class is not returning a nullable object and bypass the validation => which requires an instance of the object.
+
+```csharp
+
+public async Task<Toto?> GetByIdAsync(Guid id, Graph<Toto> graph, CancellationToken cancellationToken)
+    {
+        Toto result = await _totoDL.GetByIdAsync(id, graph, cancellationToken).ConfigureAwait(false);
+
+        if (result is not null)
+            (await ApplyRulesAsync(result).ConfigureAwait(false)).LogAndThrowIfNecessary(_logger);
+
+        return result;
+    }
+
+```

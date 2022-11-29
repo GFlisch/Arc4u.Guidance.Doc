@@ -10,6 +10,7 @@
   - Blazor => todo.
 - Remove Server info in header.
 - 204 No Content for GetById.
+- Use of JsonSerializer and not Proto one.
 
 
 ## Guidance startup message.
@@ -204,5 +205,20 @@ public async Task<Toto?> GetByIdAsync(Guid id, Graph<Toto> graph, CancellationTo
 
         return result;
     }
+
+```
+
+## Use of JsonSerializer and not Proto one.
+
+Thanks to the massive improvement done in the .NET core framework regarding json serializer. There is no benefit anymore to use the custom ProtoSerializer.
+
+The Yarp and services are now using this (reference package has been changed to JsonSerializer).
+
+```csharp
+
+    IContainerRegistry containerRegistry = new ComponentModelContainer(services).InitializeFromConfig(Configuration);
+    containerRegistry.RegisterInstance(config);
+    ==> containerRegistry.Register<IObjectSerialization, JsonSerialization>(); <==
+    services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies().Where(a => a.FullName is not null && a.FullName.StartsWith("$(solutionname).$(projectname)")));
 
 ```

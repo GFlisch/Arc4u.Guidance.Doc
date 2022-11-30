@@ -11,6 +11,7 @@
 - Remove Server info in header.
 - 204 No Content for GetById.
 - Use of JsonSerializer and not Proto one.
+- Fixes and improvement.
 
 
 ## Guidance startup message.
@@ -90,7 +91,7 @@ Finally there is also the nswag files where the aspNetCoreEnvironment property m
 
 ## Add Csp
 
-If you want to protect your service and Blazor application from exploit (via the browser) you have to define some headers and also manage the Content-Security-Policy.<br>
+If you want to protect your service and service hosting Blazor application from exploit (via the browser) you have to define some headers and also manage the Content-Security-Policy.<br>
 This is an endpoint added by your service that will be used by your browser to inform what is allowed or not to do!<br>
 This file will block for example inline scripts and protect you against script injection...
 
@@ -222,3 +223,9 @@ The Yarp and services are now using this (reference package has been changed to 
     services.AddAutoMapper(...);
 
 ```
+
+## Fixes and improvement.
+
+- Error when adding an EfCore project: The reference of the database project was not added.
+- Same for MongoDD => add also MongoDB to the Domain (usage of attributes like BSonId).
+- Fix a pluralize issue when adding a DataAccess class (EfCore and MongoDB).

@@ -5,9 +5,9 @@
 - Guidance startup message.
 - NSwag and code generation.
 - Change Localhost to Development
-- Add Csp
-  - Yarp and micro-services
-  - Blazor => todo.
+- Add Csp to
+  - Yarp
+  - micro-services.
 - Remove Server info in header.
 - 204 No Content for GetById.
 - Use of JsonSerializer and not Proto one.
@@ -219,6 +219,6 @@ The Yarp and services are now using this (reference package has been changed to 
     IContainerRegistry containerRegistry = new ComponentModelContainer(services).InitializeFromConfig(Configuration);
     containerRegistry.RegisterInstance(config);
     ==> containerRegistry.Register<IObjectSerialization, JsonSerialization>(); <==
-    services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies().Where(a => a.FullName is not null && a.FullName.StartsWith("$(solutionname).$(projectname)")));
+    services.AddAutoMapper(...);
 
 ```

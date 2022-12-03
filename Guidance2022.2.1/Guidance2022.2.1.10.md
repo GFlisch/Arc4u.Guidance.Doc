@@ -229,3 +229,4 @@ The Yarp and services are now using this (reference package has been changed to 
 - Error when adding an EfCore project: The reference of the database project was not added.
 - Same for MongoDD => add also MongoDB to the Domain (usage of attributes like BSonId).
 - Fix a pluralize issue when adding a DataAccess class (EfCore and MongoDB).
+- Fix OauthFiller code generated => declare as a Scoped to retieve the context of the user.

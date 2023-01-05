@@ -2,6 +2,8 @@
 
 # !!! This is not yet released!!!
 
+You can download the binary [here](Guidance2022.2.1.10.vsix).
+
 - Guidance startup message.
 - NSwag and code generation.
 - Change Localhost to Development
@@ -9,6 +11,7 @@
   - Yarp
   - micro-services.
 - Remove Server info in header.
+- Cookie name for Yarp project.
 - 204 No Content for GetById.
 - Use of JsonSerializer and not Proto one.
 - Fixes and improvement.
@@ -88,6 +91,10 @@ Finally there is also the nswag files where the aspNetCoreEnvironment property m
 
 ```
 
+## NSwag and code generation
+
+The Facade and Interface Sdk code generation are now fixed when an Hangfire project is added.
+This is done by adding an Environment variable and by disabling the Hangfire code during the run of the NSwag to build the Sdk.
 
 ## Add Csp
 
@@ -148,7 +155,6 @@ It is then your responsibility to check regularly this aspect.
 
 ```
 
-
 ## Remove Server info in header.
 
 To improve the opacity regarding the information we provide, one information which is sent by a service is the server info in the headers.<br>
@@ -165,6 +171,10 @@ This is why in the startup the following code has been added.
 	builder.Host
 
 ```
+
+## Cookie name for Yarp project.
+
+The cookie name for the yarp project is now named ApiGtw. So by reading the cookie, a hacker cannot discover the gateway technology.
 
 ## 204 No Content for GetById.
 

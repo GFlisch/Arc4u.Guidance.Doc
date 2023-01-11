@@ -2,7 +2,7 @@
 
 # !!! This is not yet released!!!
 
-You can download the binary [here](Guidance2022.2.1.10.vsix).
+You can download the binary [here](Guidance2022.2.1.10-1.vsix).
 
 - Guidance startup message.
 - NSwag and code generation.

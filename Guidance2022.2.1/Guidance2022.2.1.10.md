@@ -1,9 +1,8 @@
 # Release notes for version 2022.2.1.10
 
-# !!! This is not yet released!!!
-
 You can download the binary [here](Guidance2022.2.1.10-2.vsix).
 
+- Option page
 - Guidance startup message.
 - NSwag and code generation.
 - Change Localhost to Development
@@ -16,6 +15,10 @@ You can download the binary [here](Guidance2022.2.1.10-2.vsix).
 - Use of JsonSerializer and not Proto one.
 - Fixes and improvement.
 
+
+## Option page.
+
+Due to the refactoring of the Guidance project to allow the distribution of different versions, you will have to reintroduce the license key in the option menu!
 
 ## Guidance startup message.
 
@@ -240,3 +243,44 @@ The Yarp and services are now using this (reference package has been changed to 
 - Same for MongoDD => add also MongoDB to the Domain (usage of attributes like BSonId).
 - Fix a pluralize issue when adding a DataAccess class (EfCore and MongoDB).
 - Fix OauthFiller code generated => declare as a Scoped to retieve the context of the user.
+
+
+# Upgrading from Guidance 2022.2.1.9 and Arc4u < 6.0.11
+
+The new Guidance is linked to the version 6.0.11.1 of Arc4u. </br>
+
+Due to the breaking changes in [Arc4u 6.1.11](https://github.com/GFlisch/Arc4u/blob/master/Doc/Releases.md) the guidance is updated to reflect this change (only on the Yarp project).
+
+The "Arc4u.OAuth2.Configuration.OAuthConfig, Arc4u.Standard.OAuth2" registered type must be removed and replace by...
+
+```json
+{
+    "Application.Dependency": {
+    "Assemblies": [
+      ...
+    ],
+    "RegisterTypes": [
+      "Arc4u.AppSettings, Arc4u.Standard.Configuration",
+      "Arc4u.ConnectionStrings, Arc4u.Standard.Configuration",
+      "Arc4u.Caching.Memory.MemoryCache, Arc4u.Standard.Caching.Memory",
+      "Arc4u.Caching.CacheContext, Arc4u.Standard.Caching",
+      "Arc4u.Configuration.ApplicationConfigReader, Arc4u",
+      "Arc4u.TimeZoneContext, Arc4u.Standard",
+      "Arc4u.Security.Principal.ClaimsProfileFiller, Arc4u.Standard",
+      "Arc4u.Security.Principal.ClaimsAuthorizationFiller, Arc4u.Standard",
+      "Arc4u.OAuth2.Token.ApplicationCache, Arc4u.Standard.OAuth2",
+      "Arc4u.OAuth2.Security.Principal.KeyGeneratorFromIdentity, Arc4u.Standard.OAuth2",
+      "Arc4u.OAuth2.TokenProvider.CredentialTokenProvider, Arc4u.Standard.OAuth2",
+      "Arc4u.OAuth2.TokenProvider.CredentialTokenCacheTokenProvider, Arc4u.Standard.OAuth2",
+      "Arc4u.OAuth2.Configuration.OAuthConfig, Arc4u.Standard.OAuth2",
+      "Arc4u.OAuth2.Token.CacheHelper, Arc4u.Standard.OAuth2",
+      "Arc4u.gRPC.GrpcMethodInfo, Arc4u.Standard.gRPC",
+=>      "Arc4u.OAuth2.Configuration.TokenUserCacheConfiguration, Arc4u.Standard.OAuth2", <=
+=>      "Arc4u.OAuth2.Security.UserObjectIdentifier, Arc4u.Standard.OAuth2", <=
+      "Arc4u.OAuth2.TokenProvider.MsalTokenProvider, Arc4u.Standard.OAuth2.AspNetCore.Msal",
+      "Arc4u.OAuth2.TokenProvider.AzureAdOboTokenProvider, Arc4u.Standard.OAuth2.AspNetCore.Msal"
+    ]
+  }
+}
+
+```

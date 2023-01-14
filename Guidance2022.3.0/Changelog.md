@@ -45,19 +45,26 @@ var builder = WebApplication.CreateBuilder(args);
 	// Remove sensitive information that can be exploit by hackers.
 	builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
 
-	builder.Configuration.Sources.Clear();
-    
+    var Configuration = builder.Configuration;
+    Configuration.Sources.Clear();
+
 	var env = builder.Environment.EnvironmentName;
 
-    builder.Configuration.AddJsonFile("configs/appsettings.json", true, true);
-    builder.Configuration.AddJsonFile($"configs/appsettings.{env}.json", true, true);
-    builder.Configuration.AddJsonFile("configs/reverseproxy.json", true, true);
-    builder.Configuration.AddJsonFile($"configs/reverseproxy.{env}.json", true, true);
-    builder.Configuration.AddEnvironmentVariables();
+	Configuration.AddJsonFile("configs/appsettings.json", true, true);
+	Configuration.AddJsonFile($"configs/appsettings.{env}.json", true, true);
+	Configuration.AddJsonFile("configs/reverseproxy.json", true, true);
+	Configuration.AddJsonFile($"configs/reverseproxy.{env}.json", true, true);
+
+	Configuration.AddEnvironmentVariables();
 
     builder.Host
 		.UseSerilog((ctx, lc) => lc
 					.ReadFrom.Configuration(ctx.Configuration))
+
+    ...
+
+    => you have also to remove the statement assigning Configuration <=
+    ~~IConfiguration Configuration = builder.Configuration;~~
 ```
 
 
@@ -68,3 +75,10 @@ var builder = WebApplication.CreateBuilder(args);
 # What's new
 
 # Breaking changes
+
+- WebSdkAnalyzersPath
+
+## WebSdkAnalyzersPath
+
+Up to .NET 6, it was possible to have the WebSdkAnalyzersPath activated. Now this is not supported.
+The configuration has been removed from the facade and interface project.

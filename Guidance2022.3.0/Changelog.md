@@ -61,11 +61,10 @@ var builder = WebApplication.CreateBuilder(args);
 		.UseSerilog((ctx, lc) => lc
 					.ReadFrom.Configuration(ctx.Configuration))
 
-    ...
-
-    => you have also to remove the statement assigning Configuration <=
-    ~~IConfiguration Configuration = builder.Configuration;~~
 ```
+
+=> you have also to remove the statement assigning Configuration <=</br>
+~~IConfiguration Configuration = builder.Configuration;~~
 
 
 ```chsarp

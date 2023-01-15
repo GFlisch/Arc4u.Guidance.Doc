@@ -1,7 +1,5 @@
 # Release notes for version 2022.2.1.10
 
-You can download the binary [here](Guidance2022.2.1.10-2.vsix).
-
 - Option page
 - Guidance startup message.
 - NSwag and code generation.

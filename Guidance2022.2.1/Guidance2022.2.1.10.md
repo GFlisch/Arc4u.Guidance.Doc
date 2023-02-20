@@ -1,4 +1,4 @@
-# Release notes for version 2022.2.1.10
+# Release notes for version 2022.2.1.10 and 2022.2.1.11
 
 - Option page
 - Guidance startup message.

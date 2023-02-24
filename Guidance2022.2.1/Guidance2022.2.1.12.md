@@ -2,12 +2,9 @@
 
 - Multiple configurations.
 - Add Arc4u Decryptor configuration feature. 
-- Blazor controller resolve issue.
 - Namespace issue for gRPC.
 - OAuth2 config for Core services.
-- Add new host service in multiple startup configuration.
 - Add .editorconfig to a project for governance.
-- Blazor publish as trimmed.
 - Update to the latest nuget packages.
 
 
@@ -80,4 +77,36 @@ And after,
     appsettings.Staging.ID2.json
 
     
+## Add Arc4u Decryptor configuration feature.
 
+This new feature is implementing the new capability offers by the framework, check the doc [here](https://github.com/GFlisch/Arc4u/blob/master/Doc/Framework/General/Configuration%20Decryptor.md).
+
+The code is now adding in the program.cs file the sentence:
+
+```csharp
+            config.AddJsonFile("configs/appsettings.json", true, true);
+            config.AddJsonFile($"configs/appsettings.{env}.json", true, true);
+      ==>   config.AddCertificateDecryptorConfiguration();  <==
+```
+
+The configuration for the appsettings section regarding the certificate is to define by each customer!
+
+
+## Namespace issue for gRPC.
+
+Fix the issue when adding a gRPC service, the namespace in the program.cs was not added. 
+
+## OAuth2 config for Core services
+
+When a micro-services is added to the solution, the OAuth2 section from the Yarp project is copied.
+There is no need to copy the ApplicationKey which is a secret and this is not used during the validation of a token. This is now fixed.
+
+## Add .editorconfig to a project for governance
+
+No when a solution is created, an .editorconfig file is created. Basicly the file is a copy of the Aspnet core team.
+This is a way to give guidance and code rulling.
+The file is a per company settings and can be modified like you want.
+
+## Update to the latest nuget packages.
+
+Finally a check has been done to update the nuget packages used to target their final versions.

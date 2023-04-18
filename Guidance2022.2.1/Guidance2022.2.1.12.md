@@ -5,7 +5,9 @@
 - Namespace issue for gRPC.
 - OAuth2 config for Core services.
 - Add .editorconfig to a project for governance.
+- NSwag generateClientInterfaces set to true.
 - Update to the latest nuget packages.
+- Blazor and Nova 2.2.6 for Elia customer
 
 
 ## Multiple configurations.
@@ -109,4 +111,11 @@ The file is a per company settings and can be modified like you want.
 
 ## Update to the latest nuget packages.
 
-Finally a check has been done to update the nuget packages used to target their final versions.
+A check has been done to update the nuget packages used to target their final versions.
+
+## Blazor and Nova 2.2.6 for Elia customer
+
+Elia is using a custom design system for Blazor instead of MudBlazor.
+Update has been done to adopt the latest version 2.2.6 with a breaking change regarding the component tags.
+For example Img is now NVImg...
+

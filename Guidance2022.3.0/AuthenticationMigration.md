@@ -78,11 +78,13 @@ A number of properties and configuration sections disappear because they are eit
     - delete `"Arc4u.OAuth2.Security.Principal.ServerPrincipalCache, Arc4u.Standard.OAuth2"`
     - delete `"Arc4u.OAuth2.TokenProvider.MsalTokenProvider, Arc4u.Standard.OAuth2.AspNetCore.Msal"`
     - delete `"Arc4u.OAuth2.TokenProvider.AdfsTokenProvider, Arc4u.Standard.OAuth2.AspNetCore.Adal"`
-    - delete `"Arc4u.OAuth2.Security.Principal.ClaimsBearerTokenExtractor, Arc4u.Standard.OAuth2.AspNetCore.Adal"`
     - add `"Arc4u.Security.Cryptography.X509CertificateLoader, Arc4u.Standard"`
     - add `"Arc4u.OAuth2.Configuration.TokenUserCacheConfiguration, Arc4u.Standard.OAuth2"`
-    - add (or make sure it's already there) `"Arc4u.OAuth2.Security.UserObjectIdentifier, Arc4u.Standard.OAuth2"`
-    - add `"Arc4u.OAuth2.Security.Principal.ClaimsBearerTokenExtractor, Arc4u.Standard.OAuth2"` (note the change of assembly compared to the deleted entry!)
+    - add (or make sure it's already there) `""Arc4u.OAuth2.Security.UserObjectIdentifier, Arc4u.Standard.OAuth2.AspNetCore""` (note the change of assembly!)
+    - if present, change `"Arc4u.OAuth2.Security.Principal.ClaimsBearerTokenExtractor, Arc4u.Standard.OAuth2.AspNetCore.Adal"` into `"Arc4u.OAuth2.Security.Principal.ClaimsBearerTokenExtractor, Arc4u.Standard.OAuth2"` (note the change of assembly!)
+    - if present, change `"Arc4u.OAuth2.TokenProvider.CredentialTokenCacheTokenProvider, Arc4u.Standard.OAuth2"` into `"Arc4u.OAuth2.TokenProvider.CredentialTokenCacheTokenProvider, Arc4u.Standard.OAuth2.AspNetCore"` (note the change of assembly!)
+    - if present, change `"Arc4u.OAuth2.TokenProvider.ClientSecretTokenProvider, Arc4u.Standard.OAuth2"` into `"Arc4u.OAuth2.TokenProvider.RemoteClientSecretTokenProvider, Arc4u.Standard.OAuth2"` (note the change of type name!)
+    - if present, change `"Arc4u.OAuth2.Security.Principal.KeyGeneratorFromIdentity, Arc4u.Standard.OAuth2"` into `"Arc4u.OAuth2.Security.Principal.KeyGeneratorFromIdentity, Arc4u.Standard.OAuth2.AspNetCore"` (note the change of assembly!)
 - Only for the `Yarp` appsettings, in addition to the changes in `"Application.Dependency:RegisterTypes"` described in the previous point:
     - add `"Arc4u.OAuth2.TokenProviders.OidcTokenProvider, Arc4u.Standard.OAuth2.AspNetCore.Authentication"`
     - add `"Arc4u.OAuth2.TokenProviders.BootstrapContextTokenProvider, Arc4u.Standard.OAuth2.AspNetCore.Authentication"`
@@ -133,7 +135,7 @@ For the `Yarp` host, the `"OAuth2.Settings"` and `"OpenId.Settings"` sections ar
     },
     "DataProtection": {
       "EncryptionCertificate": {
-        "CertificateStore": {
+        "Store": {
           "Name": "environment-dependent encryptor certificate"
         }
       },
@@ -155,6 +157,10 @@ For the `Yarp` host, the `"OAuth2.Settings"` and `"OpenId.Settings"` sections ar
       "Audiences": "same as the old OpenId.Settings.:ServiceApplicationId",
       "Authority": "same as the old OpenId.Settings:Authority",
       "Scopes": "same as the old OpenId.Settings.:ServiceApplicationId with /user_impersonation appended"
+    },
+    "DomainsMapping": {
+      "belgrid.net": "belgrid",
+      "corp.transmission-it.de": "tmit"
     }
   },
 ~~~
@@ -165,15 +171,18 @@ You need to adapt this section for each environment. Most of it should be self-e
 - The `"Audiences"` property value correspond to the content of the old `"ServiceApplicationId"`.
 - The `"Scopes`" property correspond to the `"Audiences"` property with `/user_impersonation` appended.
 E.g. if `"Audiences"` is `https://project.environment.host`, then `"Scopes"` is `https://project.environment.host/user_impersonation`
+- The `"DomainsMapping"` is new: it maps the UPN suffix representing the domain name to the AD domain name. Previously, this 
 
 #### Basic settings
-If you have a `"Basic.Settings"` section, the section is simplified. `"ProviderId"` and `"AuthenticationType"` disappear, and `"ServiceApplicationId"` is renamed to `"Audiences"`:
+If you have a `"Basic.Settings"` section, the section is written as follows:
 ~~~json
-  "Basic.Settings": {
-    "ClientId": "same as the old Basic.Settings:ClientId",
-    "Audience": "same as the old Basic.Settings.:ServiceApplicationId",
-    "Authority": "same as the old Basic.Settings:Authority"
-  },
+  "Authentication.Basic": {
+    "Settings": {
+      "ClientId": "same as the old Basic.Settings:ClientId",
+      "Audience": "same as the old Basic.Settings.:ServiceApplicationId",
+      "Authority": "same as the old Basic.Settings:Authority"
+    }
+  }
 ~~~
 
 #### Authentication settings for non-`Yarp` hosts (standard back-ends)
@@ -191,7 +200,10 @@ There is no `"OpenId.Settings"` and the existing `"OAuth2.Settings"` is replaced
        "Scopes": "same as the old OAuth2.Settings.:ServiceApplicationId with /user_impersonation appended"
     }
   },
-
+  "DomainsMapping": {
+    "belgrid.net": "belgrid",
+    "corp.transmission-it.de": "tmit"
+  }
 ~~~
 
 
@@ -214,10 +226,11 @@ You may have configuration sections pertaining to external (authenticated) servi
   }
 ~~~
 
-Currently, you need to **add** the following property:
-
+The `ClientSecretTokenProvider` doesn't exist anymore. You need to **change** the `ProviderId` and **add** a `HeaderKey` and `Audience` property as follows:
 ~~~json
+    "ProviderId": "RemoteSecret",
     "Audience": "same content as SomeService.Settings:ServiceApplicationId",
+    "HeaderKey": "CertificateKey",
 ~~~
 
 Do **not** remove `"ServiceApplicationId"` at this time.
@@ -311,7 +324,7 @@ To make this work, you need to specify which certificate to use. This is a separ
 
 ~~~json
   "EncryptionCertificate": {
-    "CertificateStore": {
+    "Store": {
       "Name": "environment-dependent encryptor certificate"
     }
   }
@@ -335,9 +348,22 @@ The following statements:
 ... can be deleted and replaced by:
 ~~~csharp
     services.ConfigureSettings("AppSettings", Configuration, "AppSettings");
-    var basicSettings = services.AddBasicSettings(Configuration);
+    services.AddBasicAuthenticationSettings(Configuration);
     services.AddApplicationConfig(Configuration);
     services.AddCacheContext(Configuration);
+~~~
+
+The following statements:
+~~~csharp
+	var basicSettings = new BasicTokenSettingsReader(Configuration);
+	app.UseBasicAuthentication(container, new BasicAuthenticationContextOption
+	{
+		Settings = basicSettings
+	});
+~~~
+... can be deleted and replaced by:
+~~~csharp
+    app.UseBasicAuthentication2();
 ~~~
 
 #### Replace configuration statements (non-Yarp hosts)
@@ -411,6 +437,8 @@ The following statement:
     var OAuth2Settings = keyValuesOptions.Get("OAuth2");
     var OpenIdSettings = keyValuesOptions.Get("OpenId");
 ~~~
+
+For basic authentication, 
 
 #### Replace authentication configuration (non-Yarp hosts)
 The following statements:

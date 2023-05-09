@@ -178,7 +178,7 @@ For the `Yarp` host, the `"OAuth2.Settings"` and `"OpenId.Settings"` sections ar
 
 You need to adapt this section for each environment. Most of it should be self-explanatory, but here are a few pointers:
 - The name of the certificate (`"Authentication:DataProtection:EncryptionCertificate:CertificateStore:Name"`) depends on the specific environment
-- The `"CookieName"` used to be hard-coded in the Yarp host startup code: it is now a per-environment configuration setting.
+- The `"CookieName"` used to be hard-coded in the Yarp host startup code: it is now a per-environment configuration setting. Replace `PROJECT` with the name of your project.
 - The `"Audiences"` property value correspond to the content of the old `"ServiceApplicationId"`.
 - The `"Scopes`" property correspond to the `"Audiences"` property with `/user_impersonation` appended.
 E.g. if `"Audiences"` is `https://project.environment.host`, then `"Scopes"` is `https://project.environment.host/user_impersonation`

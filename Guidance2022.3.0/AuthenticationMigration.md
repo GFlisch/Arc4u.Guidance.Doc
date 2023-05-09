@@ -506,7 +506,7 @@ and
 ~~~csharp
     container.RegisterInstance<Config>(config);
 ~~~
-... since `Config` doesn't exist anymore.
+
 Add the line ` services.AddApplicationConfig(configuration);` after creating the service collection, like this:
 
 ~~~csharp
@@ -533,5 +533,5 @@ and
 ~~~csharp
     container.RegisterInstance<Config>(config);
 ~~~
-... since `Config` doesn't exist anymore.
+
 Nothing else needs to change.

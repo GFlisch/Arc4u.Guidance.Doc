@@ -1,5 +1,5 @@
-# Migrating to the new authentication model
-Arc4u version 6.0.14.3 implements a new authentication model for the back-end, which avoids relying on Microsoft-specific libraries.
+# Migrating to Arc4u 6.0.14.3
+Arc4u version 6.0.14.3 implements breaking changes and a new authentication model for the back-end, which avoids relying on Microsoft-specific libraries.
 
 New versions of the Guidance will automatically generate the correct code. Older back-ends need to be migrated manually. This document explains how.
 
@@ -36,6 +36,17 @@ or
 
 The `Arc4u.Standard.Configuration.Decryptor` reference doesn't have anything to do with authentication per se, but is needed 
 when decrypting secrets in the configuration files. It's a good idea to include it even if you don't (yet) use it.
+
+Finally, there is one package whose NuGet PackageId changed. Instead of:
+
+~~~xml
+    <PackageReference Include="Arc4u.Standard.Dependency.ComponentModel.Container" Version="6.0.14.3-preview25" />
+~~~
+... you need to specify:
+
+~~~xml
+    <PackageReference Include="Arc4u.Standard.Dependency.ComponentModel" Version="6.0.14.3-preview27" />
+~~~
 
 ### Step 1.2 Microsoft package references
 It is also a good idea to update the runtime-dependent .NET Core package references to align to the same version as Arc4u.
@@ -83,7 +94,7 @@ A number of properties and configuration sections disappear because they are eit
     - add (or make sure it's already there) `""Arc4u.OAuth2.Security.UserObjectIdentifier, Arc4u.Standard.OAuth2.AspNetCore""` (note the change of assembly!)
     - if present, change `"Arc4u.OAuth2.Security.Principal.ClaimsBearerTokenExtractor, Arc4u.Standard.OAuth2.AspNetCore.Adal"` into `"Arc4u.OAuth2.Security.Principal.ClaimsBearerTokenExtractor, Arc4u.Standard.OAuth2"` (note the change of assembly!)
     - if present, change `"Arc4u.OAuth2.TokenProvider.CredentialTokenCacheTokenProvider, Arc4u.Standard.OAuth2"` into `"Arc4u.OAuth2.TokenProvider.CredentialTokenCacheTokenProvider, Arc4u.Standard.OAuth2.AspNetCore"` (note the change of assembly!)
-    - if present, change `"Arc4u.OAuth2.TokenProvider.ClientSecretTokenProvider, Arc4u.Standard.OAuth2"` into `"Arc4u.OAuth2.TokenProvider.RemoteClientSecretTokenProvider, Arc4u.Standard.OAuth2"` (note the change of type name!)
+    - if present, change `"Arc4u.OAuth2.TokenProvider.ClientSecretTokenProvider, Arc4u.Standard.OAuth2"` into `"Arc4u.OAuth2.TokenProvider.RemoteClientSecretTokenProvider, Arc4u.Standard.OAuth2.AspNetCore"` (note the change of type name and assembly!)
     - if present, change `"Arc4u.OAuth2.Security.Principal.KeyGeneratorFromIdentity, Arc4u.Standard.OAuth2"` into `"Arc4u.OAuth2.Security.Principal.KeyGeneratorFromIdentity, Arc4u.Standard.OAuth2.AspNetCore"` (note the change of assembly!)
 - Only for the `Yarp` appsettings, in addition to the changes in `"Application.Dependency:RegisterTypes"` described in the previous point:
     - add `"Arc4u.OAuth2.TokenProviders.OidcTokenProvider, Arc4u.Standard.OAuth2.AspNetCore.Authentication"`
@@ -363,7 +374,7 @@ The following statements:
 ~~~
 ... can be deleted and replaced by:
 ~~~csharp
-    app.UseBasicAuthentication2();
+    app.UseBasicAuthentication();
 ~~~
 
 #### Replace configuration statements (non-Yarp hosts)
@@ -484,3 +495,43 @@ This can be simplified to:
 ~~~csharp
     var container = app.Services.GetRequiredService<IContainerResolve>();
 ~~~
+
+
+## Step 4: Unit Tests
+Because `Config` has disappeared, remove the statements in `ContainerFixture`:
+~~~csharp
+    var config = new Config(configuration);
+~~~
+and
+~~~csharp
+    container.RegisterInstance<Config>(config);
+~~~
+... since `Config` doesn't exist anymore.
+Add the line ` services.AddApplicationConfig(configuration);` after creating the service collection, like this:
+
+~~~csharp
+    var services = new ServiceCollection();
+    services.AddApplicationConfig(configuration);
+~~~
+
+Because `Config` has disappeared, tests using it need to change:
+~~~csharp
+    var config = _fixture.Freeze<Config>();
+~~~
+into:
+~~~csharp
+   var config = _fixture.Freeze<IOptions<ApplicationConfig>>();
+~~~
+This is the standard "Options Pattern", the actual value is accessed via the `Value` property.
+
+## Step 5: Blazor WASM
+Because `Config` has disappeared, remove the statements in `Program.cs`:
+~~~csharp
+    var config = new Config(configuration);
+~~~
+and
+~~~csharp
+    container.RegisterInstance<Config>(config);
+~~~
+... since `Config` doesn't exist anymore.
+Nothing else needs to change.

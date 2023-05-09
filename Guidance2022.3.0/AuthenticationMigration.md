@@ -182,7 +182,7 @@ You need to adapt this section for each environment. Most of it should be self-e
 - The `"Audiences"` property value correspond to the content of the old `"ServiceApplicationId"`.
 - The `"Scopes`" property correspond to the `"Audiences"` property with `/user_impersonation` appended.
 E.g. if `"Audiences"` is `https://project.environment.host`, then `"Scopes"` is `https://project.environment.host/user_impersonation`
-- The `"DomainsMapping"` is new: it maps the UPN suffix representing the domain name to the AD domain name. Previously, this 
+- The `"DomainsMapping"` is new: it maps the UPN suffix representing the domain name to the AD domain name. Previously, this was hard-coded in the framework.
 
 #### Basic settings
 If you have a `"Basic.Settings"` section, the section is written as follows:

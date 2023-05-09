@@ -74,7 +74,7 @@ You need to update OpenTelemetry packages as well:
     <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.0.0-rc9.13" />
 ~~~
 
-This update has some implications in the startup code, which will be mentioned in [Step 3.4](#Step-3.4-Update-`Program.cs`).
+This update has some implications in the startup code, which will be mentioned in [Step 3.4](#step-34-update-programcs).
 
 ## Step 2. Update the `.json` configuration files
 ### Step 2.1 The global `appsettings.json` for hosts

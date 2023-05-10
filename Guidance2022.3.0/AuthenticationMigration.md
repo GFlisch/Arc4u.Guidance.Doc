@@ -27,15 +27,19 @@ or
     <PackageReference Include="Arc4u.Standard.OAuth2.AspNetCore.Adal" Version=".." />
 ~~~
 
-... can be deleted and replaced by the following two packages:
+... can be deleted and replaced by:
 
 ~~~xml
-    <PackageReference Include="Arc4u.Standard.Configuration.Decryptor" Version="6.0.14.3" />
     <PackageReference Include="Arc4u.Standard.OAuth2.AspNetCore.Authentication" Version="6.0.14.3" />
 ~~~
 
+What you can also add is the following:
+~~~xml
+    <PackageReference Include="Arc4u.Standard.Configuration.Decryptor" Version="6.0.14.3" />
+~~~
+
 The `Arc4u.Standard.Configuration.Decryptor` reference doesn't have anything to do with authentication per se, but is needed 
-when decrypting secrets in the configuration files. It's a good idea to include it even if you don't (yet) use it.
+when decrypting secrets in the configuration files. It's a good idea to include it even if you don't (yet) use it. See the section on [adding support for seamless decryption](#add-support-for-seamless-decryption)
 
 Finally, there is one package whose NuGet PackageId changed. Instead of:
 

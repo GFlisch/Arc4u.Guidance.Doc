@@ -5,7 +5,8 @@ New versions of the Guidance will automatically generate the correct code. Older
 
 Part of these instructions also include the necessary changes to support the seamless decryption of encrypted configuration properties, which was introduced in Arc4u 6.0.12.1.
 
-These instructions are organized as a series of steps. Step 0 contains an overview of the biggest change, the remainder roughly represent the types of tasks you need to perform for the migration.
+These instructions are organized as a series of steps. Step 0 is not really a migration step, but contains an overview of the bigger picture.
+The remainder roughly represent the types of tasks you need to perform for the migration.
 
 
 ## Step 0. The big(ger) picture
@@ -39,6 +40,7 @@ Setting the thread culture and handling outgoing exceptions are now being perfor
 
 The argument to `AuthorizeAttribute` is a single `string`, representing a [__policy__](https://learn.microsoft.com/en-us/aspnet/core/security/authorization/policies?view=aspnetcore-7.0).  
 A policy is a set of requirements. At authorization time, all requirements are evaluated (using their `AuthorizationHandler`) and a user is authorizaed if all requirements are fulfilled.
+Since we already have the concept of "Operations", Arc4u has the appropriate handlers to take care of this. You normally don't need to write your own.
 
 At application startup, a new extension method is called:
 
@@ -69,10 +71,110 @@ you now write:
 As shown in the code above, you can define your own policies. 
 There is a commented-out policy called `"Custom"` which checks if a user has both `Access.AccessApplication` and `Access.CanSeeSwaggerFacadeApi` available.
 
-Moving to policy-based authorization unlocks a number of advantages:
-- You can assign a policy to an entire controller. No need to repeat it on every method if all methods require the same authorization
-- The policy system is available in Blazor WASM applications. You initialize it with exactly the same code and use exactly the same concepts
-- It becomes possible to associate authorization operations with SignalR hub, simply by specifying the policy, like this:
+#### Unlocking new scenarios with Policy based authentication
+Moving to policy-based authorization unlocks a number of advantages and unlocks a few new scenarios
+
+##### Setting a policy for an entire controller
+You can assign a policy to an entire controller if all the actions of that controller have the same policy. 
+No need to repeat it on every method if all methods require the same authorization:
+
+~~~csharp
+[Authorize(nameof(Access.AccessApplication))]
+[ApiController]
+[Route("/Scheduler/facade/[controller]")]
+[ApiExplorerSettings(GroupName = "facade")]
+public class EnvironmentController : ControllerBase
+~~~
+
+##### Setting a policy for an endpoint at the YARP level
+Previously, `reverseproxy.json` entries could only be written with the [`Default`](https://learn.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.authorization.authorizationoptions.defaultpolicy?view=aspnetcore-7.0#Microsoft_AspNetCore_Authorization_AuthorizationOptions_DefaultPolicy) authorization policy.
+This policy just required users to be authenticated:
+
+~~~json
+{
+  "ReverseProxy": {
+    "Routes": {
+      "referential/environment": {
+        "ClusterId": "referential",
+        "AuthorizationPolicy": "Default",
+        "Match": {
+          "Path": "/referential/facade/environment/{**remainder}"
+        },
+        "Transforms": [
+          {
+            "PathPattern": "/referential/facade/environment/{**remainder}"
+          }
+        ]
+      }
+    }
+  }    
+}
+~~~
+
+With the new Policy-based mechanism, you can now put a known authorization policy in there, and have your endpoint check on that policy:
+
+~~~json
+{
+  "ReverseProxy": {
+    "Routes": {
+      "referential/environment": {
+        "ClusterId": "referential",
+        "AuthorizationPolicy": ":AccessApplication",
+        "Match": {
+          "Path": "/referential/facade/environment/{**remainder}"
+        },
+        "Transforms": [
+          {
+            "PathPattern": "/referential/facade/environment/{**remainder}"
+          }
+        ]
+      }
+    }
+  }    
+}
+~~~
+
+In the above example, we've specified a policy name of a scoped operation, `":AccessApplication"`. Since most applications have a default scope of `""`, we might have written `"AccessApplication"` as well.
+
+
+##### Hangfire dashboard policy-based protection
+Adding a Hangfire job adds an `Access.CanSeeJobs` operation. To protect the Hangfire dashboard using previous versions of the Arc4u Framework, 
+a custom `IDashboardAuthorizationFilter` implementation needed to be added:
+
+~~~csharp
+public class HangfireAuthorization : IDashboardAuthorizationFilter
+{
+    public bool Authorize(DashboardContext context)
+    {
+        var httpContext = context.GetHttpContext();
+
+        // Allow all authenticated users to see the Dashboard (potentially dangerous).
+        return httpContext.User is AppPrincipal ? ((AppPrincipal)httpContext.User).IsAuthorized(Access.CanSeeJobs) : false;
+    }
+}
+~~~
+
+You would then needed to specify this implementation when setting up Hangfire:
+
+~~~csharp
+  app.MapHangfireDashboard("/scheduler/jobs", new DashboardOptions
+    {
+        Authorization = new[] { new HangfireAuthorization() },
+        AppPath = "/healthchecks-ui#/healthchecks"
+    });
+~~~
+
+With Policy-based authorization, the custom `IDashboardAuthorizationFilter` disappears and the setup call becomes simply:
+
+~~~csharp
+    app.MapHangfireDashboardWithAuthorizationPolicy(nameof(Access.CanSeeJobs), "/scheduler/jobs", new DashboardOptions
+    {
+        AppPath = "/healthchecks-ui#/healthchecks"
+    });
+~~~
+
+##### SignalR policy based authentication
+It becomes possible to associate authorization operations with SignalR hub, simply by specifying the policy, like this:
 ~~~csharp
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
@@ -87,6 +189,22 @@ public class FileProcessingHub : Hub<RunningFileUpload[]>
 ~~~
 
 Previously, you could only write `[Authorize]`, which made the hub accessible to any authenticated user, regardless of their assigned operations.
+Essentially, all scenarios described [here](https://learn.microsoft.com/en-us/aspnet/core/signalr/authn-and-authz?view=aspnetcore-7.0#authorize-users-to-access-hubs-and-hub-methods) become possible.
+
+##### Blazor WASM
+The policy system is available in Blazor WASM applications. You initialize it with exactly the same code and use exactly the same concepts:
+
+~~~csharp
+services.AddScopedOperationsPolicy(Operations.Scopes, Operations.Values, options =>
+{
+    // Add you custom policy here.
+    //options.AddPolicy("Custom", policy =>
+    //    policy.Requirements.Add(new ScopedOperationsRequirement((int)Access.AccessApplication, (int)Access.CanSeeSwaggerFacadeApi)));
+});
+~~~
+
+This was already possible before, but now the code is shared.
+
 
 #### Specifying operations
 Each operation consists of a numeric identifier and a name.
@@ -706,7 +824,10 @@ The following statements:
     app.UseOpenIdBearerInjector();
 ~~~
 
->> IMPORTANT: use `app.UseForceOfOpenId()` and `app.UseOpenIdBearerInjector()` only for Yarp, not for other back-ends!
+> IMPORTANT: use `app.UseForceOfOpenId()` and `app.UseOpenIdBearerInjector()` only for Yarp, not for other back-ends!
+
+
+> IMPORTANT: these statements must be located between `app.UseAuthentication();` and `app.UseAuthorization();` for them to work correctly.
 
 ### Statements that have been replaced by configuration
 The statements:

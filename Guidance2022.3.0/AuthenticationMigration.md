@@ -56,7 +56,7 @@ At application startup, a new extension method is called:
 This extension methods generates a number of default policies:
 - one policy per operation. The name of the policy is the name of the operation. E.g. `"AccessApplication"`
 - one policy for each combination of scope and operation. The name of the policy is the name of the scope followed by ':' and the name of the operation. 
-In most cases, there is only default scope (`""`), so you'll get a name like `":AccessApplication"`.
+In the default case, there are no scopes. If there was one, i.e. `"Toto"`, you'll get a name like `"Toto:AccessApplication"`.
 
 This means that instead of 
 ~~~csharp
@@ -232,11 +232,11 @@ public static class Operations
 {
     public static readonly Operation[] Values = Enum.GetValues<Access>().Select(o => new Operation { Name = o.ToString(), ID = (int)o }).ToArray();
 
-    public static readonly string[] Scopes = new[] { "" };
+    public static readonly string[] Scopes = Array.Empty<string>();
 }
 ~~~
 
-Note that the code now explicitly contains the scopes. By default, only the empty scope exists.
+Note that the code now explicitly contains the scopes. By default, this is empty, so no scope is defined (which is the default).
 
 The way to get from `Access` to `int` is just casting: `(int)Access.AccessApplication`.
 
@@ -381,7 +381,7 @@ public static class Access
 }
 ~~~
 
-In the newer version, operations are now an `enum`. In addition, all possible scopes are specified as well. The code becomes:
+In the newer version, operations are now an `enum`. The default is "no scopes". The code becomes:
 
 ~~~csharp
 using Arc4u.Security.Principal;
@@ -400,7 +400,7 @@ public static class Operations
 {
     public static readonly Operation[] Values = Enum.GetValues<Access>().Select(o => new Operation { Name = o.ToString(), ID = (int)o }).ToArray();
 
-    public static readonly string[] Scopes = new[] { "" };
+    public static readonly string[] Scopes = Array.Empty<string>();
 }
 
 ~~~

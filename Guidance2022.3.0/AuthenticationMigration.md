@@ -119,7 +119,7 @@ With the new Policy-based mechanism, you can now put a known authorization polic
     "Routes": {
       "referential/environment": {
         "ClusterId": "referential",
-        "AuthorizationPolicy": ":AccessApplication",
+        "AuthorizationPolicy": "AccessApplication",
         "Match": {
           "Path": "/referential/facade/environment/{**remainder}"
         },
@@ -134,8 +134,7 @@ With the new Policy-based mechanism, you can now put a known authorization polic
 }
 ~~~
 
-In the above example, we've specified a policy name of a scoped operation, `":AccessApplication"`. Since most applications have a default scope of `""`, we might have written `"AccessApplication"` as well.
-
+The `"AuthorizationPolicy"` value can also have scoped operations, if you have them defined.
 
 ##### Hangfire dashboard policy-based protection
 Adding a Hangfire job adds an `Access.CanSeeJobs` operation. To protect the Hangfire dashboard using previous versions of the Arc4u Framework, 

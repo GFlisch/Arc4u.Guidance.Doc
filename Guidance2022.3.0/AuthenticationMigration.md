@@ -1,7 +1,11 @@
-# Migrating to Arc4u 6.0.14.3
-Arc4u version 6.0.14.3 implements breaking changes and a new authentication model for the back-end, which avoids relying on Microsoft-specific libraries.
+# Migrating to Arc4u 6.1.18.x
+Arc4u version 6.1.18.x implements breaking changes and a revised authentication model for the back-end, which avoids relying on Microsoft-specific libraries.
 
 New versions of the Guidance will automatically generate the correct code. Older back-ends need to be migrated manually. This document explains how (and in some cases why).
+
+Describing everything involving migration in detail is very complicated. 
+It is therefore recommended to generate a solution with the latest version of the guidance with the same names than the application you need to migrate.
+This will give you a base reference you can use as a guide to migrate your code.
 
 Part of these instructions also include the necessary changes to support the seamless decryption of encrypted configuration properties, which was introduced in Arc4u 6.0.12.1.
 
@@ -10,7 +14,7 @@ The remainder roughly represent the types of tasks you need to perform for the m
 
 
 ## Step 0. The big(ger) picture
-Arc4u version 6.0.14.3 had many goals, but the following are likely to impact any application you will be migrating:
+Arc4u version 6.1.18.x had many goals, but the following are likely to impact any application you will be migrating:
 1. Dissociate itself from any Microsoft-specific libraries like Adal and MSAL and rely on generic libraries for authentication scenarios in back-ends
 2. Revise the appsettings to provide a clearer and more compact set of configuration settings for authentication. Avoid unnecessary repetition and provide meaningful defaults that can be overridden if necessary.
 3. Define more ".NET Core-aligned" ways to:
@@ -21,13 +25,13 @@ Arc4u version 6.0.14.3 had many goals, but the following are likely to impact an
 ### Authorization
 The most important (and interesting) changes are those pertaining to authorization.
 
-In previous versions this was done with `ServiceAspectAttribute`. This was not ideal since the attribute did 3 unrelated things:
+In previous versions of Arc4u this was done with `ServiceAspectAttribute`. This was not ideal since the attribute did 3 unrelated things:
 - check if the user is authorized for the specified operation(s)
 - set the thread culture information to the culture of the principal
 - handle any outgoing exceptions from the controller action.
 
 #### Introducing policy-based authorization
-In this version, authorization uses the standard `AuthorizeAttribute`. 
+In this version of Arc4u, authorization uses the standard `AuthorizeAttribute` everywhere. 
 Setting the thread culture and handling outgoing exceptions are now being performed using controller filters, which are defined at application startup:
 
 ~~~csharp
@@ -40,7 +44,7 @@ Setting the thread culture and handling outgoing exceptions are now being perfor
 
 The argument to `AuthorizeAttribute` is a single `string`, representing a [__policy__](https://learn.microsoft.com/en-us/aspnet/core/security/authorization/policies?view=aspnetcore-7.0).  
 A policy is a set of requirements. At authorization time, all requirements are evaluated (using their `AuthorizationHandler`) and a user is authorizaed if all requirements are fulfilled.
-Since we already have the concept of "Operations", Arc4u has the appropriate handlers to take care of this. You normally don't need to write your own.
+Since we already have the concept of "Operations" at Elia (`CanAccessApplication`, `CanSeeSwaggerFacadeApi`,...) , Arc4u has the appropriate handlers to take care of this. You normally don't need to write your own.
 
 At application startup, a new extension method is called:
 
@@ -56,7 +60,7 @@ At application startup, a new extension method is called:
 This extension methods generates a number of default policies:
 - one policy per operation. The name of the policy is the name of the operation. E.g. `"AccessApplication"`
 - one policy for each combination of scope and operation. The name of the policy is the name of the scope followed by ':' and the name of the operation. 
-In the default case, there are no scopes. If there was one, i.e. `"Toto"`, you'll get a name like `"Toto:AccessApplication"`.
+In the default case, there are no scopes. If there was one, named e.g. `"Toto"`, you'll get a name like `"Toto:AccessApplication"`.
 
 This means that instead of 
 ~~~csharp
@@ -69,10 +73,11 @@ you now write:
 ~~~
 
 As shown in the code above, you can define your own policies. 
-There is a commented-out policy called `"Custom"` which checks if a user has both `Access.AccessApplication` and `Access.CanSeeSwaggerFacadeApi` available.
+For example, there is a commented-out policy called `"Custom"` which checks if a user has both `Access.AccessApplication` and `Access.CanSeeSwaggerFacadeApi` available.
+
 
 #### Unlocking new scenarios with Policy based authentication
-Moving to policy-based authorization unlocks a number of advantages and unlocks a few new scenarios
+Moving to policy-based authorization has a number of advantages beyond being more compliant: it unlocks a few new scenarios
 
 ##### Setting a policy for an entire controller
 You can assign a policy to an entire controller if all the actions of that controller have the same policy. 
@@ -134,7 +139,8 @@ With the new Policy-based mechanism, you can now put a known authorization polic
 }
 ~~~
 
-The `"AuthorizationPolicy"` value can also have scoped operations, if you have them defined.
+The `"AuthorizationPolicy"` value can also have scoped operations, if you have them defined. 
+It's important to realize that the names of the policies must be known to the Yarp back-end.
 
 ##### Hangfire dashboard policy-based protection
 Adding a Hangfire job adds an `Access.CanSeeJobs` operation. To protect the Hangfire dashboard using previous versions of the Arc4u Framework, 
@@ -163,7 +169,7 @@ You would then needed to specify this implementation when setting up Hangfire:
     });
 ~~~
 
-With Policy-based authorization, the custom `IDashboardAuthorizationFilter` disappears and the setup call becomes simply:
+With Policy-based authorization, the custom `IDashboardAuthorizationFilter` implementation disappears and the setup call becomes simply:
 
 ~~~csharp
     app.MapHangfireDashboardWithAuthorizationPolicy(nameof(Access.CanSeeJobs), "/scheduler/jobs", new DashboardOptions
@@ -247,17 +253,153 @@ This explains why you need to write:
 [Authorize(nameof(Access.AccessApplication))]
 ~~~
 
+### Simplified configuration settings
+Another goal of this new Arc4u settings is to simplify configuration settings for authorization.
 
+Authorization configuration settings are needed to specify a variety of things:
+- Certificates for decryption
+- Authority endpoints
+- Caching configuration
+- Cookie names
+- OAuth2 settings
+- OpenID Connect (OIDC) settings
+- Basic authentication settings
+- Claims identifier types
+
+In previous versions of the guidance, these things were specified using a mixture of separate configuration settings and code.
+
+In the new guidance, everyting is described in one common `Authentication` section. 
+
+This is how it looks like for Yarp in DEV mode by default for some "application":
+
+~~~json
+"Authentication": {
+    "DefaultAuthority": {
+      "Url": "https://adfsdev.belgrid.net/adfs"
+    },
+    "DataProtection": {
+      "EncryptionCertificate": {
+        "Store": {
+          "Name": "encryptorSha2dev.belgrid.net"
+        }
+      },
+      "CacheStore": {
+        "CacheKey": "DataProtection-AuthorizationViewer-Development-Store",
+        "CacheName": "Volatile"
+      }
+    },
+    "TokenCache": {
+      "CacheName": "Volatile",
+      "MaxTime": "00:00:20"
+    },
+    "ResourcesRights": {
+      "ResourcesPolicies": {
+        "facade": {
+          "AuthorizationPolicy": "CanSeeSwaggerFacadeApi",
+          "Path": "/swagger/facade/swagger.json"
+        }
+      }
+    },
+    "CookieName": "Application.ApiGtw.Cookies",
+    "ValidateAuthority": true,
+    "OAuth2.Settings": {
+      "Audiences": [
+        "https://application.development.host"
+      ],
+      "Scopes": [
+        "https://application.development.host/user_impersonation"
+      ]
+    },
+    "OpenId.Settings": {
+      "ClientId": "the client GUID for OpenID",
+      "ClientSecret": "Add and encrypt the client secret => Decrypt:???",
+      "Audiences": [
+        "https://application.development.host"
+      ],
+      "Scopes": [
+        "https://application.development.host/user_impersonation"
+      ]
+    },
+    "ClaimsMiddleware": {
+      "ForceOpenId": {
+        "ForceAuthenticationForPaths": [
+          "/swagger*",
+          "/healthchecks-ui*",
+          "/service/jobs*"
+        ]
+      },
+      "ClaimsFiller": {
+        "AuthenticationSettingsKeys": [
+          "OpenId"
+        ]
+      }
+    },
+    "ClaimsIdentifier": [
+      "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/upn",
+      "upn"
+    ],
+    "Basic": {
+      "Settings": {
+        "ClientId": "the client GUID for basic authentication",
+        "Scopes": [
+          "https://application.development.host/user_impersonation"
+        ]
+      }
+    }
+  }
+~~~
+
+For the corresponding service, it is much simplified since Yarp takes care of the bulk of the authentication:
+
+~~~json
+  "Authentication": {
+    "DefaultAuthority": {
+      "Url": "https://adfsdev.belgrid.net/adfs"
+    },
+    "TokenCache": {
+      "CacheName": "Volatile",
+      "MaxTime": "00:00:20"
+    },
+    "ResourcesRights": {
+      "ResourcesPolicies": {
+        "facade": {
+          "AuthorizationPolicy": "CanSeeSwaggerFacadeApi",
+          "Path": "/service/swagger/facade/swagger.json"
+        }
+      }
+    },
+    "OAuth2.Settings": {
+      "Audiences": [
+        "https://application.development.host"
+      ],
+      "Scopes": [
+        "https://application.development.host/user_impersonation"
+      ]
+    },
+    "ClaimsIdentifier": [
+      "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/upn",
+      "upn"
+    ],
+    "ClaimsMiddleware": {
+      "ClaimsFiller": {
+        "AuthenticationSettingsKeys": []
+      }
+    }
+  },
+~~~
+
+Note that there is only one client secret to configure: the one in `OpenId:Settings`.
+Everything else is generated for you.
 
 ## Step 1. Update package references
 ### Step 1.1 Arc4u package references
-In all your projects, update all Arc4u references to the latest version (6.0.14.3 or later).
+In all your projects, update all Arc4u references to the latest version (6.1.18.x or later).
 
 For example:
 ~~~xml
-		<PackageReference Include="Arc4u.Standard.Data" Version="6.0.14.3" />
-		<PackageReference Include="Arc4u.Standard.Diagnostics" Version="6.0.14.3" />
-		<PackageReference Include="Arc4u.Standard.FluentValidation" Version="6.0.14.3" />
+		<PackageReference Include="Arc4u.Standard.Data" Version="6.1.18.x" />
+		<PackageReference Include="Arc4u.Standard.Diagnostics" Version="6.1.18.x" />
+		<PackageReference Include="Arc4u.Standard.FluentValidation" Version="6.1.18.x" />
 ~~~
 
 In your `Host` projects, the following Arc4u packages (if referenced):
@@ -273,19 +415,19 @@ or
 ... can be deleted and replaced by:
 
 ~~~xml
-    <PackageReference Include="Arc4u.Standard.OAuth2.AspNetCore.Authentication" Version="6.0.14.3" />
+    <PackageReference Include="Arc4u.Standard.OAuth2.AspNetCore.Authentication" Version="6.1.18.x" />
 ~~~
 
 You need to add a new package containing policy-based security, which is used both in back-ends and front ends:
 
 ~~~xml
-    <PackageReference Include="Arc4u.Standard.Authorization" Version="6.0.14.3-preview38" />
+    <PackageReference Include="Arc4u.Standard.Authorization" Version="6.1.18.x" />
 ~~~
 
 Optionally, you can also add:
 
 ~~~xml
-    <PackageReference Include="Arc4u.Standard.Configuration.Decryptor" Version="6.0.14.3" />
+    <PackageReference Include="Arc4u.Standard.Configuration.Decryptor" Version="6.1.18.x" />
 ~~~
 
 The `Arc4u.Standard.Configuration.Decryptor` reference doesn't have anything to do with authentication _per se_, but is needed 
@@ -294,19 +436,22 @@ when decrypting secrets in the configuration files. It's a good idea to include 
 Finally, there is one package whose NuGet PackageId changed. Instead of:
 
 ~~~xml
-    <PackageReference Include="Arc4u.Standard.Dependency.ComponentModel.Container" Version="6.0.14.3-preview25" />
+    <PackageReference Include="Arc4u.Standard.Dependency.ComponentModel.Container" Version="6.1.18.x-preview25" />
 ~~~
 ... you need to specify:
 
 ~~~xml
-    <PackageReference Include="Arc4u.Standard.Dependency.ComponentModel" Version="6.0.14.3-preview27" />
+    <PackageReference Include="Arc4u.Standard.Dependency.ComponentModel" Version="6.1.18.x-preview27" />
 ~~~
 
-### Step 1.2 Microsoft package references
-It is also a good idea to update the runtime-dependent .NET Core package references to align to the same version as Arc4u.
+### Step 1.2 Microsoft package and SDK references
+To avoid version downgrades, you must update the runtime-dependent .NET Core package references to align to the same version as Arc4u.
 Otherwise, you may get version mismatch warnings.
 
-For example, Arc4u 6.0.14.x is compiled with runtime 6.0.14. 
+For example:
+- Arc4u 6.0.14.x is compiled with runtime 6.0.14
+- Arc4u 6.1.18.x is compiled with runtime 6.0.18
+
 This means that references to .NET Core packages should also be updated to the same runtime version. 
 
 For example:
@@ -316,14 +461,44 @@ For example:
     <PackageReference Include="Microsoft.Extensions.Http.Polly" Version="6.0.14" />
 ~~~
 
+... should be relpaced with
+
+~~~xml
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="6.0.18" />
+    <PackageReference Include="Microsoft.Extensions.Http.Polly" Version="6.0.18" />
+~~~
+
 Be careful: not all Microsoft packages follow the runtime version numbering. For example, `Microsoft.Extensions.Logging` does not!
+
+Be aware that newer version of the runtime somtimes mandate newer versions of the SDK.
+Confusingly, they have other version numbers because they add features at different frequencies. More information can be found [here](https://learn.microsoft.com/en-us/dotnet/core/versions/).
+
+An overview of the .NET runtime versions and their corresponding SDKs can be found [here](https://versionsof.net/core/6.0/).
+
+When the guidance generates an application, it includes a `global.json` file with the SDK version number.
+
+For `6.0.18`, the `global.json` should contain:
+
+~~~json
+{
+  "sdk": {
+    "version": "6.0.410",
+    "rollForward": "latestFeature"
+  }
+}
+~~~
+
+Make sure that you have the correct version of the SDK installed both on your developement machines and the build servers. 
+
+For the build servers, contact DevOps for the update cadence (usually, it is updated 1 month after release by Microsoft).
+
 
 ### Step 1.3 OpenTelemetry package references
 You need to update OpenTelemetry packages as well:
 
 ~~~xml
-    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.4.0-rc.4" />
-    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.4.0-rc.4" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.5.1" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.5.1" />
     <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.0.0-rc9.13" />
     <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.0.0-rc9.13" />
 ~~~
@@ -408,7 +583,7 @@ The shared project requires a reference to `Arc4u.Standard` in order for the `Op
 
 ~~~xmnl
 <ItemGroup>
-    <PackageReference Include="Arc4u.Standard" Version="6.0.14.3" />
+    <PackageReference Include="Arc4u.Standard" Version="6.1.18.x" />
 </ItemGroup>
 ~~~
 
@@ -421,7 +596,8 @@ The obvious implications are:
 A number of properties and configuration sections disappear because they are either obsolete, or they are moved to the environment specific configuration files.
 
 - The `"loggingLevel"` property in section `"Application.Configuration:Environment"` can be deleted since it's not used anymore.
-- The `"Caching"` and `"Memory.Settings"` sections can be deleted. Caching is now specified per environment. If for some reason your caching settings are exactly the same for all environments, you can keep it and modify it as described below.
+- the `Caching` section can be deleted. Caching is now specified per environment. If for some reason your caching settings are exactly the same for all environments, you can keep it and modify it as described below.
+- The `"Memory.Settings"` sections can be deleted. 
 - The `"Application.TokenCacheConfiguration"` section can be deleted. It is now part of a new section per environment.
 - In the section `"Application.Dependency:RegisterTypes"`:
     - delete `"Arc4u.Configuration.ApplicationConfigReader, Arc4u"`
@@ -434,14 +610,15 @@ A number of properties and configuration sections disappear because they are eit
     - add `"Arc4u.Security.Cryptography.X509CertificateLoader, Arc4u.Standard"`
     - add `"Arc4u.OAuth2.AppPrincipalTransform, Arc4u.Standard.OAuth2.AspNetCore"`
     - add `"Arc4u.Authorization.ApplicationAuthorizationPolicy, Arc4u.Standard.Authorization"`
+    - add `"Arc4u.OAuth2.AspNetCore.ScopedServiceProviderAccessor, Arc4u.Standard.OAuth2.AspNetCore"`
+    - add `"Arc4u.OAuth2.TokenProviders.BootstrapContextTokenProvider, Arc4u.Standard.OAuth2.AspNetCore.Authentication"`
     - add (or make sure it's already there) `"Arc4u.OAuth2.Security.Principal.ClaimsBearerTokenExtractor, Arc4u.Standard.OAuth2"` (note the change of assembly!)
-    - add (or make sure it's already there) `""Arc4u.OAuth2.Security.UserObjectIdentifier, Arc4u.Standard.OAuth2.AspNetCore""` (note the change of assembly!)
+    - add (or make sure it's already there) `"Arc4u.OAuth2.Security.UserObjectIdentifier, Arc4u.Standard.OAuth2.AspNetCore""` (note the change of assembly!)
     - if present, change `"Arc4u.OAuth2.TokenProvider.CredentialTokenCacheTokenProvider, Arc4u.Standard.OAuth2"` into `"Arc4u.OAuth2.TokenProvider.CredentialTokenCacheTokenProvider, Arc4u.Standard.OAuth2.AspNetCore"` (note the change of assembly!)
     - if present, change `"Arc4u.OAuth2.TokenProvider.ClientSecretTokenProvider, Arc4u.Standard.OAuth2"` into `"Arc4u.OAuth2.TokenProvider.RemoteClientSecretTokenProvider, Arc4u.Standard.OAuth2.AspNetCore"` (note the change of type name and assembly!)
     - if present, change `"Arc4u.OAuth2.Security.Principal.KeyGeneratorFromIdentity, Arc4u.Standard.OAuth2"` into `"Arc4u.OAuth2.Security.Principal.KeyGeneratorFromIdentity, Arc4u.Standard.OAuth2.AspNetCore"` (note the change of assembly!)
 - Only for the `Yarp` appsettings, in addition to the changes in `"Application.Dependency:RegisterTypes"` described in the previous point:
     - add `"Arc4u.OAuth2.TokenProviders.OidcTokenProvider, Arc4u.Standard.OAuth2.AspNetCore.Authentication"`
-    - add `"Arc4u.OAuth2.TokenProviders.BootstrapContextTokenProvider, Arc4u.Standard.OAuth2.AspNetCore.Authentication"`
     - add `"Arc4u.OAuth2.TokenProviders.RefreshTokenProvider, Arc4u.Standard.OAuth2.AspNetCore.Authentication"`
     - add `"Arc4u.OAuth2.TokenProviders.AzureADOboTokenProvider, Arc4u.Standard.OAuth2.AspNetCore.Authentication"`
 
@@ -453,18 +630,18 @@ A number of properties and configuration sections disappear because they are eit
 #### Caching
 For all hosts, you need to add a section describing the caching parameters. It should look like this:
 ~~~json
- "Caching": {
+  "Caching": {
+    "Default": "Volatile",
     "Caches": [
       {
         "Name": "Volatile",
         "Kind": "Memory",
         "Settings": {
-          "SizeLimit": "10"
+          "SizeLimitInMB": "10"
         },
-        "IsAutoStart": "True"
+        "IsAutoStart": true
       }
-    ],
-    "Default": "Volatile"
+    ]
   },
 ~~~
 
@@ -476,31 +653,64 @@ For the `Yarp` host, the `"OAuth2.Settings"` and `"OpenId.Settings"` sections ar
 setting that relates to authentication:
 
 ~~~json
- "Authentication": {
+  "Authentication": {
+    "DefaultAuthority": {
+      "Url": "https://adfsdev.belgrid.net/adfs"
+    },
+    "DataProtection": {
+      "EncryptionCertificate": {
+        "Store": {
+          "Name": "encryptorSha2dev.belgrid.net"
+        }
+      },
+      "CacheStore": {
+        "CacheKey": "DataProtection-AuthorizationViewer-Development-Store",
+        "CacheName": "Volatile"
+      }
+    },
+    "TokenCache": {
+      "CacheName": "Volatile",
+      "MaxTime": "00:00:20"
+    },
     "ResourcesRights": {
       "ResourcesPolicies": {
         "facade": {
           "AuthorizationPolicy": "CanSeeSwaggerFacadeApi",
           "Path": "/swagger/facade/swagger.json"
-        },
-        "interface": {
-          "AuthorizationPolicy": "CanSeeSwaggerFacadeApi",
-          "Path": "/swagger/interface/swagger.json"
         }
       }
+    },
+    "CookieName": "AuthorizationViewer.ApiGtw.Cookies",
+    "ValidateAuthority": true,
+    "OAuth2.Settings": {
+      "Audiences": [
+        "same as the old OAuth2.Settings.:ServiceApplicationId"
+      ],
+      "Scopes": [
+        "same as the old OAuth2.Settings.:ServiceApplicationId with /user_impersonation appended"
+      ]
+    },
+    "OpenId.Settings": {
+      "ClientId": "same as the old OpenId.Settings:ClientId",
+      "ClientSecret": "same as the old OpenId.Settings.ApplicationKey, possibly with a 'Decrypt:' prefix",
+      "Audiences": [
+        "same as the old OpenId.Settings.:ServiceApplicationId"
+      ],
+      "Scopes": [
+        "same as the old OpenId.Settings.:ServiceApplicationId with /user_impersonation appended"
+      ]
     },
     "ClaimsMiddleware": {
       "ForceOpenId": {
         "ForceAuthenticationForPaths": [
-          "/service/jobs*",
-          "/swagger*"
+          "/swagger*",
+          "/healthchecks-ui*",
+          "/service/jobs*"
         ]
       },
       "ClaimsFiller": {
-        "LoadClaimsFromClaimsFillerProvider": true,
         "AuthenticationSettingsKeys": [
-          "OpenId",
-          "OAuth2"
+          "OpenId"
         ]
       }
     },
@@ -508,46 +718,21 @@ setting that relates to authentication:
       "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/upn",
       "upn"
     ],
-    "TokenCache": {
-      "CacheName": "Volatile",
-      "MaxTime": "00:00:20"
-    },
-    "DefaultAuthority": {
-      "Url": "same as the old OAuth2.Settings:Authority or the old OpenId.Settings:Authority",
-      "TokenEndpoint": "/oauth2/token"
-    },
-    "AuthenticationCacheTicketStore": {
-      "CacheName": "Volatile"
-    },
-    "DataProtection": {
-      "EncryptionCertificate": {
-        "Store": {
-          "Name": "environment-dependent encryptor certificate"
-        }
-      },
-      "CacheStore": {
-        "CacheKey": "DataProtection-",
-        "CacheName": "Volatile"
+    "Basic": {
+      "Settings": {
+        "ClientId": "same as the old Basic.Settings:ClientId",
+        "Scopes": [
+          "same as the old Basic.Settings.:ServiceApplicationId with /user_impersonation appended"
+        ]
       }
-    },
-    "MetadataAddress": "same as the old AppSettings:ida_MetadataAddress",
-    "CookieName": "PROJECT.ApiGtw.Cookies",
-    "OAuth2.Settings": {
-       "Audiences": "same as the old OAuth2.Settings.:ServiceApplicationId",
-       "Scopes": "same as the old OAuth2.Settings.:ServiceApplicationId with /user_impersonation appended"
-     },
-    "OpenId.Settings": {
-      "ClientId": "same as the old OpenId.Settings:ClientId",
-      "ClientSecret": "same as the old OpenId.Settings.ApplicationKey"
-      "Audiences": "same as the old OpenId.Settings.:ServiceApplicationId",
-      "Scopes": "same as the old OpenId.Settings.:ServiceApplicationId with /user_impersonation appended"
     },
     "DomainsMapping": {
       "belgrid.net": "belgrid",
       "corp.transmission-it.de": "tmit"
     }
-  },
-~~~
+  }
+
+ ~~~
 
 You need to adapt this section for each environment. Most of it should be self-explanatory, but here are a few pointers:
 - The `ResourcesRights` section associates access rights (called "Policies" in the new model) to endpoints that are not handled by `ControllerBase` implementations in your code. 
@@ -568,24 +753,6 @@ Although this property is still present, it's now optional: specifying a single 
 - The `"Scopes`" property correspond to the `"Audiences"` property with `/user_impersonation` appended.
 E.g. if `"Audiences"` is `https://project.environment.host`, then `"Scopes"` is `https://project.environment.host/user_impersonation`
 - The `"DomainsMapping"` is new: it maps the UPN suffix representing the domain name to the AD domain name. Previously, this was hard-coded in the framework.
-
-#### Basic settings
-If you have a `"Basic.Settings"` section, the section is now a `"Basic"` section moved inside the `"Authority"` section (at the same level as the `"OpenId.Settings"` section) written as follows:
-~~~json
-    "Basic": {
-      "Settings": {
-      "ClientId": "same as the old Basic.Settings:ClientId",
-      "Scope": "same as the old OpenId.Settings.:ServiceApplicationId with /user_impersonation appended"
-      },
-      "Certificates": {
-        "CertificateKey": {
-          "Store": {
-            "Name": "encryptorSha2[dev|test|acc|prod].belgrid.net"
-          }
-        }
-      }
-    }
-~~~
 
 #### Authentication settings for non-`Yarp` hosts (standard back-ends)
 There is no `"OpenId.Settings"` and the existing `"OAuth2.Settings"` is moved to an `"Authentication"` section very similar to the Yarp case:
@@ -653,15 +820,52 @@ You may have configuration sections pertaining to external (authenticated) servi
   }
 ~~~
 
-The `ClientSecretTokenProvider` doesn't exist anymore. You need to **change** the `ProviderId` and **add** a `HeaderKey` and `Audience` property as follows:
+To migratte these services, you create a new section called `"ClientSecrets"` inside the `"Authentication"` section.
+In there, you define the following:
+
 ~~~json
-    "ProviderId": "RemoteSecret",
-    "Audience": "same content as SomeService.Settings:ServiceApplicationId",
-    "HeaderKey": "CertificateKey",
+ "SomeService": {
+        "HeaderKey": "CertificateKey",
+        "ClientSecret": "..."
+}
+
+    "ClientSecrets": {
+        "SomeService": {
+        "ClientId": "same as the old "SomeService.Settings:ClientId",
+        "Scopes": [
+            "same as the old "SomeService.Settings:ServiceApplicationId with /user_impersonation appended"
+        ],
+        "Credential": "same as the old "SomeService.Settings:ClientSecret"
+        }
+    }
+
 ~~~
 
-Do **not** remove `"ServiceApplicationId"` at this time.
+Your `JwtHttpHandler` class for this service (usually defined in your host's `Infrastructure` folder) now references this section directly:
 
+~~~csharp
+    [Export]
+    public class MailSenderHttpHandler : JwtHttpHandler
+    {
+        public MailSenderHttpHandler(IScopedServiceProviderAccessor service, IOptionsMonitor<SimpleKeyValueSettings> options, ILogger<MailSenderHttpHandler> logger)
+            : base(service, logger, options.Get("SomeService"))
+        {
+        }
+    }
+~~~
+
+The `JwtHttphandler` is now defined in `Arc4u.OAuth2.Token` instead of the previous `Arc4u.OAuth2.Msal.Token` which doesn't exist anymore.
+
+
+In your `Program.cs` file, you reference this handler the usual way:
+
+~~~csharp
+    services.AddHttpClient("SomeService")
+        .AddHttpMessageHandler<ServiceHttpHandler>()
+        .AddTransientHttpErrorPolicy(p => p.WaitAndRetryAsync(3, _ => TimeSpan.FromMilliseconds(200)));
+~~~
+
+You can then get a `HttpClient` via the `IHttpClientFactory`.
 
 ## Step 3 Code changes
 ### Step 3.1 Removing the `...SettingsReader` classes
@@ -675,7 +879,7 @@ This includes types like:
 Handlers (i.e. types inheriting from `JwtHttpHandler`) have slightly different constructors to reflect the new way of getting options.
 The standard [Options pattern](https://learn.microsoft.com/en-us/dotnet/core/extensions/options) of .NET core is now used, and `IOptionsMonitor<SimpleKeyValueSettings>` is now injected to get the configuration settings.
 
-Here are two updated examples corresponding to the two most common use cases in the back-ends.
+Here are three updated examples corresponding to the two most common use cases in the back-ends.
 
 Example 1:
 
@@ -688,8 +892,8 @@ using Microsoft.Extensions.Options;
 [Export]
 public class OAuth2HttpHandler : JwtHttpHandler
 {
-    public OAuth2HttpHandler(IHttpContextAccessor accessor, IOptionsMonitor<SimpleKeyValueSettings> options, ILogger<OAuth2HttpHandler> logger)
-        : base(accessor, logger, options, "OAuth2")
+    public OAuth2HttpHandler(IScopedServiceProviderAccessor service, IOptionsMonitor<SimpleKeyValueSettings> options, ILogger<OAuth2HttpHandler> logger)
+        : base(service, logger, options.Get("OAuth2"))
     {
 
     }
@@ -708,16 +912,31 @@ using Microsoft.Extensions.Options;
 [Export]
 public class SomeServiceHttpHandler : JwtHttpHandler
 {
-    public SomeServiceHttpHandler(IContainerResolve containerResolve, IOptionsMonitor<SimpleKeyValueSettings> options, ILogger<SomeServiceHttpHandler> logger)
-        : base(containerResolve, logger, options, "SomeService")
+    public SomeServiceHttpHandler(IScopedServiceProviderAccessor service, IOptionsMonitor<SimpleKeyValueSettings> options, ILogger<SomeServiceHttpHandler> logger)
+        : base(service, logger, options.Get("SomeService"))
     {
 
     }
 }
 ~~~
 
+Example 3:
+
+~~~csharp
+[Export]
+public class OAuth2GrpcInterceptor : OAuth2Interceptor
+{
+    public OAuth2GrpcInterceptor(IScopedServiceProviderAccessor service, IOptionsMonitor<SimpleKeyValueSettings> options, ILogger<OAuth2Interceptor> logger)
+        : base(service, logger, options.Get("OAuth2"))
+    {
+    }
+}
+~~~
+
 The second example is typical of a custom (authenticated) service you back-end is calling. The name `"SomeService"` refers to a configuratin mapping that needs
-to be set up, which will be described in Step 3.4.
+to be set up as described above.
+
+The third example is a gRPC interceptor.
 
 ### Step 3.3 Update the `EnvironmentBL`
 Because the `Config` class has disappeared, the `EnvironmentBL` needs to be rewritten.
@@ -739,6 +958,10 @@ public class EnvironmentInfoBL : IEnvironmentInfoBL
 
 
 ### Step 3.4 Update `Program.cs`
+These changes are among the most difficult to describe. 
+Remember that it's always interesting to generate an application with the latest version of the guidance and use the generated code as a reference.
+It will always be more up-to-date than this document.
+
 #### Renames
 In order to align with the convention that services are **Add**ed to a service collection and **Use**d in an application, rename
 ~~~csharp
@@ -1209,7 +1432,23 @@ services.AddScopedOperationsPolicy(Operations.Scopes, Operations.Values, options
 
 This looks like the same statement that is now in the back-ends `Program.cs` files, and is on purpose.
 
-Nothing else needs to change.
+If it seems `AddScopedOperationsPolicy` cannot be found, you probably forgot to reference the new assembly in your project:
+
+~~~xml
+    <PackageReference Include="Arc4u.Standard.Authorization" Version="6.1.18.x" />
+~~~
+
+The method is in namespace `Arc4u.Authorization`.
+
+These changes affect pages injecting the `Config` instance, which now doesn't exist anymore.
+
+The solution is to inject the `ApplicationConfig` instance:
+
+~~~
+@inject ApplicationConfig Config;
+~~~
+
+
 
 ## Step 6: WPF
 The disappearence of the `Config` type has two implications:

@@ -1396,6 +1396,11 @@ If you are using `HostServiceApplicationFactory<TEntryPoint>` for end-to-end tes
 
 Derived classes are trivial to correct. Just pass the `Operations.Values` as argument to the constructor.
 
+### 3.6 Update CSP code
+There are updates to the Content Security Policy: it is best that you copy the code in `SecurityHeaderCSP.cs` (class `SecurityHeaderCSPExtension`) from a newly generated project.
+
+Failure to do this and you probably won't see the Swagger UI appearing correctly (just a blank browser page) because the oauth2 endpoint is not marked as trusted in the previous version.
+
 ## Step 5: Blazor WASM
 Because `Config` has disappeared, remove the statements in `Program.cs`:
 ~~~csharp

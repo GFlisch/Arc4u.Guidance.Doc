@@ -824,22 +824,20 @@ To migratte these services, you create a new section called `"ClientSecrets"` in
 In there, you define the following:
 
 ~~~json
- "SomeService": {
-        "HeaderKey": "CertificateKey",
-        "ClientSecret": "..."
-}
-
     "ClientSecrets": {
         "SomeService": {
         "ClientId": "same as the old "SomeService.Settings:ClientId",
         "Scopes": [
             "same as the old "SomeService.Settings:ServiceApplicationId with /user_impersonation appended"
         ],
-        "Credential": "same as the old "SomeService.Settings:ClientSecret"
+        "Credential": "Decrypt:same as the old "SomeService.Settings:ClientSecret"
         }
     }
 
 ~~~
+
+It is important to realize that there is no token provider decrypting secrets: the decryption is now being performed when the configuration is read.
+Therefore, put `Decrypt:` in front of your encrypted string when migrating new code.
 
 Your `JwtHttpHandler` class for this service (usually defined in your host's `Infrastructure` folder) now references this section directly:
 

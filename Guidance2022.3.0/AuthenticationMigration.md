@@ -865,6 +865,15 @@ In your `Program.cs` file, you reference this handler the usual way:
 
 You can then get a `HttpClient` via the `IHttpClientFactory`.
 
+Make sure the following assemblies are referenced in `appsettings.json` if they aren't already there:
+
+
+~~~json
+      "Arc4u.OAuth2.TokenProvider.CredentialSecretTokenProvider, Arc4u.Standard.OAuth2.AspNetCore",
+      "Arc4u.OAuth2.Security.Principal.AppServicePrincipalFactory, Arc4u.Standard.OAuth2.AspNetCore",
+      "Arc4u.OAuth2.Security.Principal.ServerPrincipalCache, Arc4u.Standard.OAuth2"
+~~~
+
 ## Step 3 Code changes
 ### Step 3.1 Removing the `...SettingsReader` classes
 Handling configurations has been simplified. Specific "settings reader" types deriving from Arc4u's `KeyValueSettings` can be removed.

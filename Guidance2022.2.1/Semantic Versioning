@@ -1,0 +1,23 @@
+# Guidance versioning.
+
+Until now, the versioning of the Guidance was based on the following principle.
+
+
+2022.x.y.z.
+ |   | | |---- New implementation
+ |   | |---- 1 | the x an y was fixed and not used correctly. 
+ |   |---- 2   |
+ |---- Targeting the Visual studio 2022.
+
+ One request from the customers was to have the capability to use the guidances side by side, meaning that the teams working on different projects and version of the frameworks are not forced to follow the rythm of updates of the Guidance.  
+ New versions of the Guidances will be available in the Visual Studio Marketplace separately.  
+ 
+ Different Guidances can be installed side by side and used side by side!
+
+ The new versioning model will be:
+
+ 2022.x.y.z.
+ |   | | |---- Patch => fix an issue.
+ |   | |---- Minor version [1..n], when a new feature is implemented with no backward impact.
+ |   |---- Major version => Each time breaking changes or a new version exist [3..n].
+ |---- Targeting the Visual studio 2022.                                       

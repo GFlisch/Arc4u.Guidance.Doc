@@ -18,6 +18,6 @@ Until now, the versioning of the Guidance was based on the following principle.
 
  2022.x.y.z.
  |   | | |---- Patch => fix an issue.
- |   | |---- Minor version [1..n], when a new feature is implemented with no backward impact.
+ |   | |---- Minor version [0..n], when a new feature is implemented with no backward impact.
  |   |---- Major version => Each time breaking changes or a new version exist [3..n].
  |---- Targeting the Visual studio 2022.                                       
